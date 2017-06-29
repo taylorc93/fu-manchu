@@ -1,0 +1,24 @@
+{
+  "name": "fu-manchu",
+  "version": "1.0.0",
+  "description": "A modified version of mustache.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taylorc93/fu-manchu.git"
+  },
+  "keywords": [
+    "mustache",
+    "render",
+    "template"
+  ],
+  "author": "Connor Taylor",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/taylorc93/fu-manchu/issues"
+  },
+  "homepage": "https://github.com/taylorc93/fu-manchu#readme"
+}
