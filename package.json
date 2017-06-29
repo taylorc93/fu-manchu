@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/taylorc93/fu-manchu/issues"
   },
-  "homepage": "https://github.com/taylorc93/fu-manchu#readme"
+  "homepage": "https://github.com/taylorc93/fu-manchu#readme",
+  "dependencies": {
+    "chalk": "^1.1.3"
+  }
 }
