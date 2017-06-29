@@ -2,7 +2,7 @@
   "name": "fu-manchu",
   "version": "1.0.0",
   "description": "A modified version of mustache.js",
-  "main": "index.js",
+  "main": "build/index.js",
   "scripts": {
     "build": "cross-env NODE_ENV=production webpack"
   },

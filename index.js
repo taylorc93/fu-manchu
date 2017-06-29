@@ -17,6 +17,10 @@ import chalk from 'chalk';
 //   }
 // }(this, function mustacheFactory (mustache) {
 
+const name = 'fu-manchu';
+const version = '1.0.0';
+const baseTags = [ '{{', '}}' ];
+
 var objectToString = Object.prototype.toString;
 var isArray = Array.isArray || function isArrayPolyfill (object) {
   return objectToString.call(object) === '[object Array]';
@@ -142,7 +146,7 @@ function parseTemplate (template, tags) {
     closingCurlyRe = new RegExp('\\s*' + escapeRegExp('}' + tagsToCompile[1]));
   }
 
-  compileTags(tags || mustache.tags);
+  compileTags(tags || baseTags);
 
   var scanner = new Scanner(template);
 
@@ -614,7 +618,7 @@ Writer.prototype.unescapedValue = function unescapedValue (token, context) {
 Writer.prototype.escapedValue = function escapedValue (token, context) {
   var value = context.lookup(token[1]);
   if (value != null)
-    return mustache.escape(value);
+    return escape(value);
 };
 
 Writer.prototype.rawValue = function rawValue (token) {
@@ -659,7 +663,7 @@ function render (template, view, partials) {
 function to_html (template, view, partials, send) {
   /*eslint-enable*/
 
-  var result = mustache.render(template, view, partials);
+  var result = render(template, view, partials);
 
   if (isFunction(send)) {
     send(result);
@@ -672,9 +676,9 @@ function to_html (template, view, partials, send) {
 const escape = (text) => text;
 
 export default {
-  name: 'mustache.js',
-  version: '2.3.0',
-  tags: [ '{{', '}}' ],
+  name,
+  version,
+  tags: baseTags,
   clearCache,
   parse,
   render,
