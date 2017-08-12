@@ -1,8 +1,5 @@
 const fs = require('fs');
 
-const whiteRe = /\s*/;
-const spaceRe = /\s+/;
-const equalsRe = /\s*=/;
 const openingRegex = /\{\{/;
 const closingRe = /\s*\}\}/;
 const tagRe = /#|\^|\/|>|\{|&|=|!/;
@@ -13,9 +10,9 @@ const PARTIAL_TAG = `>`;
 
 const tagHandlers = {
   text: (token) => token[1],
-  name: ([type, contents, contextKey], context) => context[contextKey],
-  [SECTION_TAG]: (token) => token[1],
-  [CLOSING_TAG]: (token) => token[1],
+  name: ([type, contents, contextKey], context) => context[contextKey] || ``,
+  [SECTION_TAG]: (token) => ``,
+  [CLOSING_TAG]: (token) => ``,
   [PARTIAL_TAG]: (token) => token[1],
 };
 
@@ -23,7 +20,9 @@ const readTemplate = (templateId) => {
   return fs.readFileSync(`./tests/${templateId}`, { encoding: 'utf8' });
 };
 
-const getTag = (template) => {
+const isArray = (x) => Array.isArray(x);
+
+const getTagToken = (template) => {
   // Remove the opening `{{`
   const tagContents = template.slice(2);
   const tagMatch = tagContents.match(tagRe);
@@ -48,21 +47,16 @@ const getTag = (template) => {
 }
 
 /* Returns a text token of all chars before a match was found */
-const getTextBeforeMatch = (str, match) => {
+const getTextToken = (str, endIndex) => {
   return [
     `text`,
-    match.index === 0 ? `` : str.slice(0, match.index)
+    endIndex === 0 ? `` : str.slice(0, endIndex)
   ];
 }
 
-const isSectionToken = (token) => {
-  return token[0] === SECTION_TAG;
-}
-
-const isClosingToken = (token) => {
-  return token[0] === CLOSING_TAG;
-}
-
+const isSectionToken = (token) => token[0] === SECTION_TAG;
+const isSectionBlock = (token) => isArray(token[0]);
+const isClosingToken = (token) => token[0] === CLOSING_TAG;
 
 const formatTokens = (tokens) => {
   const _format = (remainingTokens, currentTokens) => {
@@ -93,12 +87,12 @@ const parse = (template) => {
 
     if (!openingMatch) {
       // Get any text that might be after the last tag
-      const text = getTextBeforeMatch(str, { index: str.length - 1 });
+      const text = getTextToken(str, str.length - 1);
       return [...tokens, text];
     }
 
-    const text = getTextBeforeMatch(str, openingMatch);
-    const token = getTag(str.slice(openingMatch.index));  
+    const text = getTextToken(str, openingMatch.index);
+    const token = getTagToken(str.slice(openingMatch.index));  
     const newString = str.replace(text[1], ``).replace(token[1], ``);
 
     return _parse(newString, [...tokens, text, token]);
@@ -109,10 +103,30 @@ const parse = (template) => {
   return formatTokens(rawTokens);
 };
 
-const render = (template, context, partialLoader) => {
-  const tokens = parse(template);
+const processTokens = (tokens, context, partialLoader) => {
+  const _process = (remainingTokens, currentContext, renderedString) => {
+    const [token, ...rest] = remainingTokens;
 
-  return tokens.reduce((str, token) => {
+    if (!token) {
+      return renderedString;
+    }
+
+    // Check if this is a section block
+    if (isSectionBlock(token)) {
+      const [type, context, contextKey] = token[0];
+      const processedSection = _process(
+        token,
+        currentContext[contextKey],
+        ``,
+      );
+
+      return _process(
+        rest,
+        currentContext,
+        `${renderedString}${processedSection}`,
+      );
+    }
+
     const [type, contents, contextKey] = token;
     const handler = tagHandlers[type];
 
@@ -122,13 +136,28 @@ const render = (template, context, partialLoader) => {
       partialLoader,
     );
 
-    return `${str}${renderedContents}`;
-  }, '');
+    return _process(
+      rest,
+      currentContext,
+      `${renderedString}${renderedContents}`,
+    );
+  };
+
+  return _process(tokens, context, ``);
+}
+
+const render = (template, context, partialLoader) => {
+  const tokens = parse(template);
+  const parsedString = processTokens(tokens, context, partialLoader);
+
+  return parsedString;
 };
 
 const main = () => {
   const template = readTemplate(`basic.txt`);
-  const renderedText = render(template, {});
+  const renderedText = render(template, {
+    variable: 'foobar',
+  });
 
   console.log(renderedText);
 };
