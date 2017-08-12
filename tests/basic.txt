@@ -9,3 +9,7 @@ function () {
 {{#section}}
   {{sectionVar}}
 {{/section}}
+
+{{variable2}}
+
+some text
