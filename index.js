@@ -4,18 +4,6 @@
  * http://github.com/janl/mustache.js
  */
 import chalk from 'chalk';
-/*global define: false Mustache: true*/
-
-// (function defineMustache (global, factory) {
-//   if (typeof exports === 'object' && exports && typeof exports.nodeName !== 'string') {
-//     factory(exports); // CommonJS
-//   } else if (typeof define === 'function' && define.amd) {
-//     define(['exports'], factory); // AMD
-//   } else {
-//     global.Mustache = {};
-//     factory(global.Mustache); // script, wsh, asp
-//   }
-// }(this, function mustacheFactory (mustache) {
 
 const name = 'fu-manchu';
 const version = '1.0.0';

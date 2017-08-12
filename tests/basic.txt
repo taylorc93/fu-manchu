@@ -1,0 +1,11 @@
+asdf  {{variable}}
+
+  {{indentedVariable}}
+
+function () {
+  console.log('foo');
+}
+
+{{#section}}
+  {{sectionVar}}
+{{/section}}
