@@ -103,60 +103,91 @@ const parse = (template) => {
   return formatTokens(rawTokens);
 };
 
-const processTokens = (tokens, context, partialLoader) => {
-  const _process = (remainingTokens, currentContext, renderedString) => {
-    const [token, ...rest] = remainingTokens;
+/* Handles processing a block of section tokens */
+const handleSectionBlock = (
+  tokens,
+  context,
+  partialLoader,
+  renderedString,
+) => {
+  const [type, tag, contextKey] = tokens[0];
+  const sectionContext = context[contextKey];
+  const tokensToProcess = tokens.slice(1, -1);
 
-    if (!token) {
-      return renderedString;
-    }
+  return sectionContext.reduce((str, ctx) => {
+    const processedSection = _process(
+      tokensToProcess,
+      ctx,
+      partialLoader,
+      ``,
+    );
 
-    // Check if this is a section block
-    if (isSectionBlock(token)) {
-      const [type, context, contextKey] = token[0];
-      const processedSection = _process(
-        token,
-        currentContext[contextKey],
-        ``,
-      );
+    return `${str}${processedSection}`;
+  }, renderedString);
+}
 
-      return _process(
-        rest,
-        currentContext,
-        `${renderedString}${processedSection}`,
-      );
-    }
 
-    const [type, contents, contextKey] = token;
-    const handler = tagHandlers[type];
+const _process = (tokens, context, partialLoader, renderedString) => {
+  const [token, ...rest] = tokens;
 
-    const renderedContents = handler(
+  if (!token) {
+    return renderedString;
+  }
+
+  // Check if this is a section block
+  if (isSectionBlock(token)) {
+    const sectionStr =  handleSectionBlock(
       token,
       context,
       partialLoader,
+      ``,
     );
 
     return _process(
       rest,
-      currentContext,
-      `${renderedString}${renderedContents}`,
+      context,
+      partialLoader,
+      `${renderedString}${sectionStr}`,
     );
-  };
+  }
 
-  return _process(tokens, context, ``);
+  const [type, contents, contextKey] = token;
+  const handler = tagHandlers[type];
+
+  const renderedContents = handler(
+    token,
+    context,
+    partialLoader,
+  );
+
+  return _process(
+    rest,
+    context,
+    partialLoader,
+    `${renderedString}${renderedContents}`,
+  );
+};
+
+const processTokens = (tokens, context, partialLoader) => {
+  return _process(tokens, context, partialLoader, ``);
 }
 
 const render = (template, context, partialLoader) => {
   const tokens = parse(template);
-  const parsedString = processTokens(tokens, context, partialLoader);
 
-  return parsedString;
+  return processTokens(tokens, context, partialLoader);
 };
 
 const main = () => {
   const template = readTemplate(`basic.txt`);
   const renderedText = render(template, {
     variable: 'foobar',
+    variable2: '1234',
+    section: [
+      { sectionVar: 'whos' },
+      { sectionVar: 'on' },
+      { sectionVar: 'first' },
+    ],  
   });
 
   console.log(renderedText);
