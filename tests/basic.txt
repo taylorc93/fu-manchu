@@ -28,4 +28,11 @@ booleanSection was false
 to be removed}}
 {{variable2}}
 
+{{> basicPartial}}
+{{> partialWithVariable}}
+
+{{#objectSection}}
+{{> partialWithVariable}}
+{{/objectSection}}
+
 some text

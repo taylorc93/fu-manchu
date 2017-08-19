@@ -18,7 +18,13 @@ const tagHandlers = {
   [INVERTED_TAG]: (token) => ``,
   [CLOSING_TAG]: (token) => ``,
   [COMMENT_TAG]: (token) => ``,
-  [PARTIAL_TAG]: (token) => token[1],
+  [PARTIAL_TAG]: ([type, contents, partialKey], context, partialLoader) => {
+    return render(
+      partialLoader(partialKey, context),
+      context,
+      partialLoader,
+    );
+  },
 };
 
 const readTemplate = (templateId) => {
@@ -37,7 +43,7 @@ const getTagToken = (template) => {
     ? tagContents.slice(0, 1)
     : `name`;
 
-  const removeNewLine = tagType !== `text` && tagType !== `name`;
+  const removeNewLine = tagType !== `text` && tagType !== `name` && tagType !== PARTIAL_TAG;
   // We need to handle newlines better for sections
   const closingMatch = removeNewLine
     ? template.match(newlineClosingRe)
@@ -106,7 +112,7 @@ const parse = (template) => {
 
     if (!openingMatch) {
       // Get any text that might be after the last tag
-      const text = getTextToken(str, str.length - 1);
+      const text = getTextToken(str, str.length);
       return [...tokens, text];
     }
 
@@ -171,7 +177,6 @@ const processTokens = (tokens, context, partialLoader, renderedString) => {
     return renderedString;
   }
 
-  // Check if this is a section block
   if (isSectionBlock(token)) {
     const sectionStr =  handleSectionBlock(
       token,
@@ -213,21 +218,34 @@ const render = (template, context, partialLoader) => {
 
 const main = () => {
   const template = readTemplate(`basic.txt`);
-  const renderedText = render(template, {
-    variable: 'foobar',
-    variable2: 1234,
-    arraySection: [
-      { sectionVar: 'whos' },
-      { sectionVar: 'on' },
-      { sectionVar: 'first' },
-    ],
-    emptySection: [],
-    indentedVariable: 'Im indented',
-    booleanSection: false,
-    objectSection: {
-      text: 'Hello world!',
+  const partialLoader = (t, context) => {
+    if (t === `basicPartial`) {
+      return `I am a partial`;
+    } else {
+      return `{{text}}`;
+    }
+  };
+
+  const renderedText = render(
+    template,
+    {
+      variable: 'foobar',
+      variable2: 1234,
+      arraySection: [
+        { sectionVar: 'whos' },
+        { sectionVar: 'on' },
+        { sectionVar: 'first' },
+      ],
+      emptySection: [],
+      indentedVariable: 'I am indented',
+      booleanSection: false,
+      objectSection: {
+        text: 'Hello world!',
+      },
+      text: 'Partial text',
     },
-  });
+    partialLoader
+  );
 
   console.log(renderedText);
 };
