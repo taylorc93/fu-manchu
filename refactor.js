@@ -114,7 +114,7 @@ const handleSectionBlock = (
   const sectionContext = context[contextKey];
   const tokensToProcess = tokens.slice(1, -1);
 
-  // Remove an extra newline from sections
+  // Remove extra newline from sections
   if (tokensToProcess[0][0] === `text`) {
     const [type, contents] = tokensToProcess[0];
     tokensToProcess[0] = [
