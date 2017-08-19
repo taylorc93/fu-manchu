@@ -11,7 +11,10 @@ function () {
 {{/section}}
 
 {{#booleanSection}}
-I got rendered
+booleanSection was true
+{{/booleanSection}}
+{{^booleanSection}}
+booleanSection was false
 {{/booleanSection}}
 
 {{variable2}}
