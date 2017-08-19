@@ -2,7 +2,7 @@ const fs = require('fs');
 
 const DEFAULT_OPENING_RE = /\{\{/;
 const DEFAULT_CLOSING_RE = /\s*\}\}/;
-const DEFAULT_NEWLINE_CLOSING_RE = /\s*\}\}\n/;
+const DEFAULT_NEWLINE_CLOSING_RE = /\s*\}\}(\n?)/;
 const TAG_RE = /#|\^|\/|>|\{|&|=|!/;
 
 const TEXT_TAG = `text`;
@@ -54,8 +54,8 @@ const getTagContents = (contents, type, tags) => {
 }
 
 const getTagToken = (template, tags) => {
-  // Remove the opening `{{`
   const [openingRe, closingRe, newlineClosingRe] = tags;
+  // Remove the opening `{{`
   const tagContents = template.slice(2);
   const tagMatch = tagContents.match(TAG_RE);
 
@@ -79,9 +79,16 @@ const getTagToken = (template, tags) => {
 
     const tagContents = getTagContents(fullTag, tagType, tags);
 
+    // If there is still an opening tag in the tag contents, then the tag was
+    // not closed properly
+    if (tagContents.match(openingRe)) {
+      throw new Error(`Unclosed tag ${fullTag}`);
+    }
+
     return [tagType, fullTag, tagContents];
   } else {
-    throw new Error(`Unclosed tag starting at index ${openingMatch.index}`);
+    const badLine = template.split('\n')[0]
+    throw new Error(`Unclosed tag for line ${badLine}`);
   }
 }
 
@@ -99,8 +106,8 @@ const isSectionBlock = (token) => isArray(token[0]);
 const isClosingToken = (token) => token[0] === CLOSING_TAG;
 
 /*
- * Formats the array of tokens such that sections are encapsulated in their
- * own arrays
+ * Formats the array of tokens such that section or inverted tags are
+ * encapsulated in their own arrays.
  */
 const formatTokens = (tokens) => {
   const _format = (remainingTokens, currentTokens) => {
@@ -111,6 +118,11 @@ const formatTokens = (tokens) => {
 
     if (isSectionToken(head) || isInvertedToken(head)) {
       const [sectionTokens, remaining] = _format(tail, [head]);
+      const lastToken = sectionTokens.slice(-1)[0];
+      if (lastToken[0] !== CLOSING_TAG) {
+        throw new Error(`Unclosed section ${sectionTokens[0][1]}`);
+      }
+
       return _format(remaining, [...currentTokens, sectionTokens]);
     } else if (isClosingToken(head)) {
       return [[...currentTokens, head], tail];
@@ -119,7 +131,12 @@ const formatTokens = (tokens) => {
     return _format(tail, [...currentTokens, head])
   };
 
-  const [parsed, remaining] = _format(tokens, []);
+  // Remove any empty string text tags
+  const filteredTokens = tokens.filter((t) => {
+    return t[0] !== TEXT_TAG || t[1] !== ``;
+  });
+
+  const [parsed, remaining] = _format(filteredTokens, []);
 
   return parsed;
 }
@@ -257,7 +274,7 @@ const render = (template, context, partialLoader) => {
 };
 
 const main = () => {
-  const template = readTemplate(`basic.txt`);
+  const template = readTemplate(`unclosedSection.txt`);
   const partialLoader = (t, context) => {
     if (t === `basicPartial`) {
       return `I am a partial`;
