@@ -1,23 +1,27 @@
 const fs = require('fs');
 
-const openingRegex = /\{\{/;
-const closingRe = /\s*\}\}/;
-const newlineClosingRe = /\s*\}\}\n/;
-const tagRe = /#|\^|\/|>|\{|&|=|!/;
+const DEFAULT_OPENING_RE = /\{\{/;
+const DEFAULT_CLOSING_RE = /\s*\}\}/;
+const DEFAULT_NEWLINE_CLOSING_RE = /\s*\}\}\n/;
+const TAG_RE = /#|\^|\/|>|\{|&|=|!/;
 
+const TEXT_TAG = `text`;
+const VARIABLE_TAG = `variable`;
 const SECTION_TAG = `#`;
 const CLOSING_TAG = `/`;
 const PARTIAL_TAG = `>`;
 const INVERTED_TAG = `^`;
 const COMMENT_TAG = `!`;
+const DELIMITER_TAG = `=`;
 
 const tagHandlers = {
-  text: (token) => token[1],
-  name: ([type, contents, contextKey], context) => context[contextKey] || ``,
+  [TEXT_TAG]: (token) => token[1],
+  [VARIABLE_TAG]: ([type, contents, contextKey], context) => context[contextKey] || ``,
   [SECTION_TAG]: (token) => ``,
   [INVERTED_TAG]: (token) => ``,
   [CLOSING_TAG]: (token) => ``,
   [COMMENT_TAG]: (token) => ``,
+  [DELIMITER_TAG]: (token) => ``,
   [PARTIAL_TAG]: ([type, contents, partialKey], context, partialLoader) => {
     return render(
       partialLoader(partialKey, context),
@@ -31,19 +35,37 @@ const readTemplate = (templateId) => {
   return fs.readFileSync(`./tests/${templateId}`, { encoding: 'utf8' });
 };
 
+const escapeRegExp = (str) => str.replace(
+  /[\-\[\]{}()*+?.,\\\^$|#\s]/g,
+  '\\$&',
+);
+
 const isArray = (x) => Array.isArray(x);
 const isBoolean = (x) => typeof x === `boolean`;
 
-const getTagToken = (template) => {
+const getTagContents = (contents, type, tags) => {
+  const [openingRe, closingRe, newlineClosingRe] = tags;
+  const removedOpen = contents.replace(openingRe, ``);
+
+  // Don't replace TAG_RE if the token represents a variable
+  return type !== VARIABLE_TAG
+   ? removedOpen.replace(TAG_RE, ``).replace(closingRe, ``).trim()
+   : removedOpen.replace(closingRe, ``).trim()
+}
+
+const getTagToken = (template, tags) => {
   // Remove the opening `{{`
+  const [openingRe, closingRe, newlineClosingRe] = tags;
   const tagContents = template.slice(2);
-  const tagMatch = tagContents.match(tagRe);
+  const tagMatch = tagContents.match(TAG_RE);
 
   const tagType = tagMatch && tagMatch.index === 0
     ? tagContents.slice(0, 1)
-    : `name`;
+    : VARIABLE_TAG;
 
-  const removeNewLine = tagType !== `text` && tagType !== `name` && tagType !== PARTIAL_TAG;
+  const removeNewLine = tagType !== VARIABLE_TAG
+    && tagType !== PARTIAL_TAG;
+
   // We need to handle newlines better for sections
   const closingMatch = removeNewLine
     ? template.match(newlineClosingRe)
@@ -54,11 +76,8 @@ const getTagToken = (template) => {
       0,
       closingMatch.index + closingMatch[0].length,
     );
-    const tagContents = fullTag
-      .replace(openingRegex, ``)
-      .replace(tagRe, ``)
-      .replace(closingRe, ``)
-      .trim();
+
+    const tagContents = getTagContents(fullTag, tagType, tags);
 
     return [tagType, fullTag, tagContents];
   } else {
@@ -69,7 +88,7 @@ const getTagToken = (template) => {
 /* Returns a text token of all chars before a match was found */
 const getTextToken = (str, endIndex) => {
   return [
-    `text`,
+    TEXT_TAG,
     endIndex === 0 ? `` : str.slice(0, endIndex),
   ];
 }
@@ -105,10 +124,23 @@ const formatTokens = (tokens) => {
   return parsed;
 }
 
+const getNewTags = (tokenContents) => {
+  const newTags = tokenContents.split(' ');
+  if (newTags.length !== 2) {
+    throw new Error(`Set delimter tag contains invalid number of tags. It must be 2 (opening and closing), you included ${newTags.length}`);
+  }
+
+  return [
+    new RegExp(escapeRegExp(newTags[0])),
+    new RegExp(`\\s*` + escapeRegExp(newTags[1])),
+    new RegExp(`\\s*` + escapeRegExp(newTags[1]) + '\\n'),
+  ];
+}
 
 const parse = (template) => {
-  const _parse = (str, tokens) => {
-    const openingMatch = str.match(openingRegex);
+  const _parse = (str, tokens, tags) => {
+    const openingRe = tags[0];
+    const openingMatch = str.match(openingRe);
 
     if (!openingMatch) {
       // Get any text that might be after the last tag
@@ -117,16 +149,24 @@ const parse = (template) => {
     }
 
     const text = getTextToken(str, openingMatch.index);
-    const token = getTagToken(str.slice(openingMatch.index));
+    const token = getTagToken(str.slice(openingMatch.index), tags);
 
+    // Remove the text and tag contents to process the next part of the string
     const newString = str.replace(text[1], ``).replace(token[1], ``);
+    const newTags = token[0] === DELIMITER_TAG
+      ? getNewTags(token[2])
+      : tags;
 
-    return _parse(newString, [...tokens, text, token]);
+    return _parse(newString, [...tokens, text, token], newTags);
   };
 
-  return formatTokens(
-    _parse(template, []),
+  const rawTokens = _parse(
+    template,
+    [],
+    [DEFAULT_OPENING_RE, DEFAULT_CLOSING_RE, DEFAULT_NEWLINE_CLOSING_RE],
   );
+
+  return formatTokens(rawTokens);
 };
 
 /* Handles processing a block of section tokens */

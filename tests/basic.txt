@@ -6,6 +6,10 @@ function () {
   console.log('foo');
 }
 
+{{= <% %> }}
+<% variable %>
+<%= {{ }} %>
+
 {{#arraySection}}
 {{sectionVar}}
 {{/arraySection}}
@@ -21,6 +25,7 @@ booleanSection was false
 {{/booleanSection}}
 
 {{# objectSection}}
+Object section
 {{text}}
 {{/ objectSection}}
 
@@ -32,6 +37,7 @@ to be removed}}
 {{> partialWithVariable}}
 
 {{#objectSection}}
+Object section with partial
 {{> partialWithVariable}}
 {{/objectSection}}
 
