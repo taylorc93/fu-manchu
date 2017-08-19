@@ -6,9 +6,12 @@ function () {
   console.log('foo');
 }
 
-{{#section}}
-  {{sectionVar}}
-{{/section}}
+{{#arraySection}}
+{{sectionVar}}
+{{/arraySection}}
+{{# emptySection}}
+I shouldn't be rendered
+{{/ emptySection}}
 
 {{#booleanSection}}
 booleanSection was true
@@ -16,6 +19,10 @@ booleanSection was true
 {{^booleanSection}}
 booleanSection was false
 {{/booleanSection}}
+
+{{# objectSection}}
+{{text}}
+{{/ objectSection}}
 
 {{! I am going
 to be removed}}

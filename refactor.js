@@ -134,9 +134,6 @@ const handleSectionBlock = (
   const sectionContext = context[contextKey];
   const tokensToProcess = tokens.slice(1, -1);
 
-  console.log(tokens[0]);
-  console.log(sectionContext);
-
   if (isBoolean(sectionContext)) {
     const shouldRender = type === INVERTED_TAG
       ? !sectionContext
@@ -145,18 +142,25 @@ const handleSectionBlock = (
     return shouldRender
       ? processTokens(tokensToProcess, {}, partialLoader, ``)
       : ``;
+  } else if (isArray(sectionContext)) {
+    return sectionContext.reduce((str, ctx) => {
+      const processedSection = processTokens(
+        tokensToProcess,
+        ctx,
+        partialLoader,
+        ``,
+      );
+
+      return `${str}${processedSection}`;
+    }, renderedString);
   }
 
-  return sectionContext.reduce((str, ctx) => {
-    const processedSection = processTokens(
-      tokensToProcess,
-      ctx,
-      partialLoader,
-      ``,
-    );
-
-    return `${str}${processedSection}`;
-  }, renderedString);
+  return processTokens(
+    tokensToProcess,
+    sectionContext,
+    partialLoader,
+    ``,
+  );
 }
 
 
@@ -204,8 +208,6 @@ const processTokens = (tokens, context, partialLoader, renderedString) => {
 const render = (template, context, partialLoader) => {
   const tokens = parse(template);
 
-  console.log(tokens);
-
   return processTokens(tokens, context, partialLoader, ``);
 };
 
@@ -214,13 +216,17 @@ const main = () => {
   const renderedText = render(template, {
     variable: 'foobar',
     variable2: 1234,
-    section: [
+    arraySection: [
       { sectionVar: 'whos' },
       { sectionVar: 'on' },
       { sectionVar: 'first' },
     ],
+    emptySection: [],
     indentedVariable: 'Im indented',
     booleanSection: false,
+    objectSection: {
+      text: 'Hello world!',
+    },
   });
 
   console.log(renderedText);
