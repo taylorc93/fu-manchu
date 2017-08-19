@@ -17,6 +17,8 @@ booleanSection was true
 booleanSection was false
 {{/booleanSection}}
 
+{{! I am going
+to be removed}}
 {{variable2}}
 
 some text

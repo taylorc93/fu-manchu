@@ -9,6 +9,7 @@ const SECTION_TAG = `#`;
 const CLOSING_TAG = `/`;
 const PARTIAL_TAG = `>`;
 const INVERTED_TAG = `^`;
+const COMMENT_TAG = `!`;
 
 const tagHandlers = {
   text: (token) => token[1],
@@ -16,6 +17,7 @@ const tagHandlers = {
   [SECTION_TAG]: (token) => ``,
   [INVERTED_TAG]: (token) => ``,
   [CLOSING_TAG]: (token) => ``,
+  [COMMENT_TAG]: (token) => ``,
   [PARTIAL_TAG]: (token) => token[1],
 };
 
@@ -211,7 +213,7 @@ const main = () => {
   const template = readTemplate(`basic.txt`);
   const renderedText = render(template, {
     variable: 'foobar',
-    variable2: '1234',
+    variable2: 1234,
     section: [
       { sectionVar: 'whos' },
       { sectionVar: 'on' },
