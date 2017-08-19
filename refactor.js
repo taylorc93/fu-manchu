@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const openingRegex = /\{\{/;
 const closingRe = /\s*\}\}/;
+const sectionClosingRe = /\s*\}\}\n/;
 const tagRe = /#|\^|\/|>|\{|&|=|!/;
 
 const SECTION_TAG = `#`;
@@ -21,6 +22,7 @@ const readTemplate = (templateId) => {
 };
 
 const isArray = (x) => Array.isArray(x);
+const isBoolean = (x) => typeof x === `boolean`;
 
 const getTagToken = (template) => {
   // Remove the opening `{{`
@@ -31,14 +33,21 @@ const getTagToken = (template) => {
     ? tagContents.slice(0, 1)
     : `name`;
 
-  const closingMatch = template.match(closingRe);
+  // We need to handle newlines better for sections
+  const closingMatch = tagType === SECTION_TAG || tagType === CLOSING_TAG
+    ? template.match(sectionClosingRe)
+    : template.match(closingRe);
 
   if (closingMatch) {
-    const fullTag = template.slice(0, closingMatch.index + 2);
+    const fullTag = template.slice(
+      0,
+      closingMatch.index + closingMatch[0].length,
+    );
     const tagContents = fullTag
       .replace(openingRegex, ``)
       .replace(tagRe, ``)
-      .replace(closingRe, ``);
+      .replace(closingRe, ``)
+      .trim();
 
     return [tagType, fullTag, tagContents];
   } else {
@@ -50,7 +59,7 @@ const getTagToken = (template) => {
 const getTextToken = (str, endIndex) => {
   return [
     `text`,
-    endIndex === 0 ? `` : str.slice(0, endIndex)
+    endIndex === 0 ? `` : str.slice(0, endIndex),
   ];
 }
 
@@ -58,6 +67,10 @@ const isSectionToken = (token) => token[0] === SECTION_TAG;
 const isSectionBlock = (token) => isArray(token[0]);
 const isClosingToken = (token) => token[0] === CLOSING_TAG;
 
+/*
+ * Formats the array of tokens such that sections are encapsulated in their
+ * own arrays
+ */
 const formatTokens = (tokens) => {
   const _format = (remainingTokens, currentTokens) => {
     const [head, ...tail] = remainingTokens;
@@ -92,15 +105,15 @@ const parse = (template) => {
     }
 
     const text = getTextToken(str, openingMatch.index);
-    const token = getTagToken(str.slice(openingMatch.index));  
+    const token = getTagToken(str.slice(openingMatch.index));
     const newString = str.replace(text[1], ``).replace(token[1], ``);
 
     return _parse(newString, [...tokens, text, token]);
   };
 
-  const rawTokens = _parse(template, []);
-
-  return formatTokens(rawTokens);
+  return formatTokens(
+    _parse(template, []),
+  );
 };
 
 /* Handles processing a block of section tokens */
@@ -114,17 +127,14 @@ const handleSectionBlock = (
   const sectionContext = context[contextKey];
   const tokensToProcess = tokens.slice(1, -1);
 
-  // Remove extra newline from sections
-  if (tokensToProcess[0][0] === `text`) {
-    const [type, contents] = tokensToProcess[0];
-    tokensToProcess[0] = [
-      type,
-      contents.replace(/\n/, ``),
-    ];
+  if (isBoolean(sectionContext)) {
+    return sectionContext
+      ? processTokens(tokensToProcess, {}, partialLoader, ``)
+      : ``;
   }
 
   return sectionContext.reduce((str, ctx) => {
-    const processedSection = _process(
+    const processedSection = processTokens(
       tokensToProcess,
       ctx,
       partialLoader,
@@ -136,7 +146,7 @@ const handleSectionBlock = (
 }
 
 
-const _process = (tokens, context, partialLoader, renderedString) => {
+const processTokens = (tokens, context, partialLoader, renderedString) => {
   const [token, ...rest] = tokens;
 
   if (!token) {
@@ -152,7 +162,7 @@ const _process = (tokens, context, partialLoader, renderedString) => {
       ``,
     );
 
-    return _process(
+    return processTokens(
       rest,
       context,
       partialLoader,
@@ -169,7 +179,7 @@ const _process = (tokens, context, partialLoader, renderedString) => {
     partialLoader,
   );
 
-  return _process(
+  return processTokens(
     rest,
     context,
     partialLoader,
@@ -177,14 +187,10 @@ const _process = (tokens, context, partialLoader, renderedString) => {
   );
 };
 
-const processTokens = (tokens, context, partialLoader) => {
-  return _process(tokens, context, partialLoader, ``);
-}
-
 const render = (template, context, partialLoader) => {
   const tokens = parse(template);
 
-  return processTokens(tokens, context, partialLoader);
+  return processTokens(tokens, context, partialLoader, ``);
 };
 
 const main = () => {
@@ -197,7 +203,8 @@ const main = () => {
       { sectionVar: 'on' },
       { sectionVar: 'first' },
     ],
-    indentedVariable: 'Im indented'
+    indentedVariable: 'Im indented',
+    booleanSection: true,
   });
 
   console.log(renderedText);
