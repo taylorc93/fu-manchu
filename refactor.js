@@ -15,16 +15,16 @@ const COMMENT_TAG = `!`;
 const DELIMITER_TAG = `=`;
 
 const tagHandlers = {
-  [TEXT_TAG]: (token) => token[1],
-  [VARIABLE_TAG]: ([type, contents, contextKey], context) => context[contextKey] || ``,
+  [TEXT_TAG]: ({ rawContents }) => rawContents,
+  [VARIABLE_TAG]: ({ type, rawContents, key }, context) => context[key] || ``,
   [SECTION_TAG]: (token) => ``,
   [INVERTED_TAG]: (token) => ``,
   [CLOSING_TAG]: (token) => ``,
   [COMMENT_TAG]: (token) => ``,
   [DELIMITER_TAG]: (token) => ``,
-  [PARTIAL_TAG]: ([type, contents, partialKey], context, partialLoader) => {
+  [PARTIAL_TAG]: ({ type, rawContents, key }, context, partialLoader) => {
     return render(
-      partialLoader(partialKey, context),
+      partialLoader(key, context),
       context,
       partialLoader,
     );
@@ -43,7 +43,7 @@ const escapeRegExp = (str) => str.replace(
 const isArray = (x) => Array.isArray(x);
 const isBoolean = (x) => typeof x === `boolean`;
 
-const getTagContents = (contents, type, tags) => {
+const getTagKey = (contents, type, tags) => {
   const [openingRe, closingRe, newlineClosingRe] = tags;
   const removedOpen = contents.replace(openingRe, ``);
 
@@ -53,57 +53,56 @@ const getTagContents = (contents, type, tags) => {
    : removedOpen.replace(closingRe, ``).trim()
 }
 
-const getTagToken = (template, tags) => {
-  const [openingRe, closingRe, newlineClosingRe] = tags;
+const getTagToken = (template, tagRegexes) => {
+  const [openingRe, closingRe, newlineClosingRe] = tagRegexes;
   // Remove the opening `{{`
-  const tagContents = template.slice(2);
-  const tagMatch = tagContents.match(TAG_RE);
+  const contentsWithoutOpeningBrace = template.slice(2);
+  const tagMatch = contentsWithoutOpeningBrace.match(TAG_RE);
 
-  const tagType = tagMatch && tagMatch.index === 0
-    ? tagContents.slice(0, 1)
+  const type = tagMatch && tagMatch.index === 0
+    ? contentsWithoutOpeningBrace.slice(0, 1)
     : VARIABLE_TAG;
 
-  const removeNewLine = tagType !== VARIABLE_TAG
-    && tagType !== PARTIAL_TAG;
+  const shouldRemoveNewLine = type !== VARIABLE_TAG
+    && type !== PARTIAL_TAG;
 
-  // We need to handle newlines better for sections
-  const closingMatch = removeNewLine
+  // We need to handle newlines differently for sections
+  const closingMatch = shouldRemoveNewLine
     ? template.match(newlineClosingRe)
     : template.match(closingRe);
 
   if (closingMatch) {
-    const fullTag = template.slice(
+    const rawContents = template.slice(
       0,
       closingMatch.index + closingMatch[0].length,
     );
 
-    const tagContents = getTagContents(fullTag, tagType, tags);
+    const key = getTagKey(rawContents, type, tagRegexes);
 
     // If there is still an opening tag in the tag contents, then the tag was
     // not closed properly
-    if (tagContents.match(openingRe)) {
-      throw new Error(`Unclosed tag ${fullTag}`);
+    if (key.match(openingRe)) {
+      throw new Error(`Unclosed tag: ${rawContents}`);
     }
 
-    return [tagType, fullTag, tagContents];
+    return { type, rawContents, key };
   } else {
     const badLine = template.split('\n')[0]
-    throw new Error(`Unclosed tag for line ${badLine}`);
+    throw new Error(`Unclosed tag: ${badLine}`);
   }
 }
 
 /* Returns a text token of all chars before a match was found */
-const getTextToken = (str, endIndex) => {
-  return [
-    TEXT_TAG,
-    endIndex === 0 ? `` : str.slice(0, endIndex),
-  ];
-}
+const getTextToken = (str, endIndex) => ({
+  type: TEXT_TAG,
+  rawContents: endIndex === 0 ? `` : str.slice(0, endIndex),
+  key: ``,
+});
 
-const isSectionToken = (token) => token[0] === SECTION_TAG;
-const isInvertedToken = (token) => token[0] === INVERTED_TAG;
-const isSectionBlock = (token) => isArray(token[0]);
-const isClosingToken = (token) => token[0] === CLOSING_TAG;
+const isSectionToken = ({ type }) => type === SECTION_TAG;
+const isInvertedToken = ({ type }) => type === INVERTED_TAG;
+const isSectionBlock = (token) => isArray(token);
+const isClosingToken = ({ type }) => type === CLOSING_TAG;
 
 /*
  * Formats the array of tokens such that section or inverted tags are
@@ -119,8 +118,8 @@ const formatTokens = (tokens) => {
     if (isSectionToken(head) || isInvertedToken(head)) {
       const [sectionTokens, remaining] = _format(tail, [head]);
       const lastToken = sectionTokens.slice(-1)[0];
-      if (lastToken[0] !== CLOSING_TAG) {
-        throw new Error(`Unclosed section ${sectionTokens[0][1]}`);
+      if (lastToken.type !== CLOSING_TAG) {
+        throw new Error(`Unclosed section ${sectionTokens[0].rawContents}`);
       }
 
       return _format(remaining, [...currentTokens, sectionTokens]);
@@ -132,8 +131,8 @@ const formatTokens = (tokens) => {
   };
 
   // Remove any empty string text tags
-  const filteredTokens = tokens.filter((t) => {
-    return t[0] !== TEXT_TAG || t[1] !== ``;
+  const filteredTokens = tokens.filter(({ type, rawContents }) => {
+    return type !== TEXT_TAG || rawContents !== ``;
   });
 
   const [parsed, remaining] = _format(filteredTokens, []);
@@ -169,9 +168,9 @@ const parse = (template) => {
     const token = getTagToken(str.slice(openingMatch.index), tags);
 
     // Remove the text and tag contents to process the next part of the string
-    const newString = str.replace(text[1], ``).replace(token[1], ``);
-    const newTags = token[0] === DELIMITER_TAG
-      ? getNewTags(token[2])
+    const newString = str.replace(text.rawContents, ``).replace(token.rawContents, ``);
+    const newTags = token.type === DELIMITER_TAG
+      ? getNewTags(token.key)
       : tags;
 
     return _parse(newString, [...tokens, text, token], newTags);
@@ -193,8 +192,8 @@ const handleSectionBlock = (
   partialLoader,
   renderedString,
 ) => {
-  const [type, tag, contextKey] = tokens[0];
-  const sectionContext = context[contextKey];
+  const { type, rawContents, key } = tokens[0];
+  const sectionContext = context[key];
   const tokensToProcess = tokens.slice(1, -1);
 
   if (isBoolean(sectionContext)) {
@@ -250,7 +249,7 @@ const processTokens = (tokens, context, partialLoader, renderedString) => {
     );
   }
 
-  const [type, contents, contextKey] = token;
+  const { type, rawContents, key } = token;
   const handler = tagHandlers[type];
 
   const renderedContents = handler(
@@ -274,7 +273,7 @@ const render = (template, context, partialLoader) => {
 };
 
 const main = () => {
-  const template = readTemplate(`unclosedSection.txt`);
+  const template = readTemplate(`nestedSection.txt`);
   const partialLoader = (t, context) => {
     if (t === `basicPartial`) {
       return `I am a partial`;
@@ -298,10 +297,13 @@ const main = () => {
       booleanSection: false,
       objectSection: {
         text: 'Hello world!',
+        nested: {
+          foo: 'bar'
+        },
       },
       text: 'Partial text',
     },
-    partialLoader
+    partialLoader,
   );
 
   console.log(renderedText);

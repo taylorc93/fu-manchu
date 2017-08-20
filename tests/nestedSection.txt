@@ -1,0 +1,1 @@
+{{#objectSection}}{{#nested}}{{foo}}{{/nested}}{{/objectSection}}

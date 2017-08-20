@@ -5,7 +5,9 @@
   "main": "build/index.js",
   "scripts": {
     "build": "cross-env NODE_ENV=production webpack",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test-watch": "jest --watch"
   },
   "repository": {
     "type": "git",
@@ -49,6 +51,7 @@
     "eslint-plugin-jsx-a11y": "^3.0.2",
     "eslint-plugin-react": "^6.9.0",
     "flow-bin": "^0.53.0",
+    "jest": "^20.0.4",
     "webpack": "^3.0.0"
   }
 }

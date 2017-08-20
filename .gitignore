@@ -1,6 +1,4 @@
 node_modules
 .DS_Store
 
-lib/utils
-
 fu-manchu-*.tgz
