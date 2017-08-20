@@ -1,18 +1,21 @@
 const fs = require('fs');
+const {
+  DEFAULT_OPENING_RE,
+  DEFAULT_CLOSING_RE,
+  DEFAULT_NEWLINE_CLOSING_RE,
+  TAG_RE,
+  TEXT_TAG,
+  VARIABLE_TAG,
+  SECTION_TAG,
+  CLOSING_TAG,
+  PARTIAL_TAG,
+  INVERTED_TAG,
+  COMMENT_TAG,
+  DELIMITER_TAG,
+} = require('./lib/utils/constants');
 
-const DEFAULT_OPENING_RE = /\{\{/;
-const DEFAULT_CLOSING_RE = /\s*\}\}/;
-const DEFAULT_NEWLINE_CLOSING_RE = /\s*\}\}(\n?)/;
-const TAG_RE = /#|\^|\/|>|\{|&|=|!/;
-
-const TEXT_TAG = `text`;
-const VARIABLE_TAG = `variable`;
-const SECTION_TAG = `#`;
-const CLOSING_TAG = `/`;
-const PARTIAL_TAG = `>`;
-const INVERTED_TAG = `^`;
-const COMMENT_TAG = `!`;
-const DELIMITER_TAG = `=`;
+const hasType = require('./lib/tokens/hasType');
+const escapeRegExp = require('./lib/utils/escapeRegExp');
 
 const tagHandlers = {
   [TEXT_TAG]: ({ rawContents }) => rawContents,
@@ -34,11 +37,6 @@ const tagHandlers = {
 const readTemplate = (templateId) => {
   return fs.readFileSync(`./tests/${templateId}`, { encoding: 'utf8' });
 };
-
-const escapeRegExp = (str) => str.replace(
-  /[\-\[\]{}()*+?.,\\\^$|#\s]/g,
-  '\\$&',
-);
 
 const isArray = (x) => Array.isArray(x);
 const isBoolean = (x) => typeof x === `boolean`;
@@ -99,10 +97,10 @@ const getTextToken = (str, endIndex) => ({
   key: ``,
 });
 
-const isSectionToken = ({ type }) => type === SECTION_TAG;
-const isInvertedToken = ({ type }) => type === INVERTED_TAG;
+const isSectionToken = (token) => hasType(token, SECTION_TAG);
+const isInvertedToken = (token) => hasType(token, INVERTED_TAG);
 const isSectionBlock = (token) => isArray(token);
-const isClosingToken = ({ type }) => type === CLOSING_TAG;
+const isClosingToken = (token) => hasType(token, CLOSING_TAG);
 
 /*
  * Formats the array of tokens such that section or inverted tags are
@@ -130,7 +128,7 @@ const formatTokens = (tokens) => {
     return _format(tail, [...currentTokens, head])
   };
 
-  // Remove any empty string text tags
+  // Remove any empty string text tags that may have been created
   const filteredTokens = tokens.filter(({ type, rawContents }) => {
     return type !== TEXT_TAG || rawContents !== ``;
   });
@@ -140,8 +138,8 @@ const formatTokens = (tokens) => {
   return parsed;
 }
 
-const getNewTags = (tokenContents) => {
-  const newTags = tokenContents.split(' ');
+const getNewTagRegExps = (delimiterTagContents) => {
+  const newTags = delimiterTagContents.split(' ');
   if (newTags.length !== 2) {
     throw new Error(`Set delimter tag contains invalid number of tags. It must be 2 (opening and closing), you included ${newTags.length}`);
   }
@@ -170,7 +168,7 @@ const parse = (template) => {
     // Remove the text and tag contents to process the next part of the string
     const newString = str.replace(text.rawContents, ``).replace(token.rawContents, ``);
     const newTags = token.type === DELIMITER_TAG
-      ? getNewTags(token.key)
+      ? getNewTagRegExps(token.key)
       : tags;
 
     return _parse(newString, [...tokens, text, token], newTags);
@@ -273,7 +271,7 @@ const render = (template, context, partialLoader) => {
 };
 
 const main = () => {
-  const template = readTemplate(`nestedSection.txt`);
+  const template = readTemplate(`basic.txt`);
   const partialLoader = (t, context) => {
     if (t === `basicPartial`) {
       return `I am a partial`;
@@ -311,7 +309,7 @@ const main = () => {
 
 main();
 
-// module.exports = {
-//   parse,
-//   render,
-// };
+module.exports = {
+  parse,
+  render,
+};
