@@ -2,11 +2,10 @@
   "presets": [
     ["env", {
       "targets": {
-        "node": 4
+        "node": 6
       },
       "modules": false,
     }],
-    "flow"
   ],
   "plugins": [
     "transform-runtime",

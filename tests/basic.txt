@@ -29,6 +29,14 @@ Object section
 {{text}}
 {{/ objectSection}}
 
+{{#functionSection}}
+{{variable}}
+{{/functionSection}}
+
+{{#anotherFunction}}
+{{variable}}
+{{/anotherFunction}}
+
 {{! I am going
 to be removed}}
 {{variable2}}
