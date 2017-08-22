@@ -1,17 +1,17 @@
 const path = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
-const BabiliPlugin = require("babili-webpack-plugin");
 
 module.exports = {
+  context: path.resolve(__dirname, './lib'),
   entry: {
-    index: './index.js',
+    fumanchu: './index.js',
   },
   output: {
     path: path.resolve(__dirname, './build'),
     filename: '[name].js',
-    library: 'fu-manchu',
-    libraryTarget: 'umd'
+    // library: 'fu-manchu',
+    // libraryTarget: 'umd'
   },
   target: 'node',
   module: {
