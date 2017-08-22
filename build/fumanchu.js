@@ -714,10 +714,7 @@ module.exports = require("fs");
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray__ = __webpack_require__(16);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__parse__ = __webpack_require__(68);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__utils_constants__ = __webpack_require__(8);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__utils_isArray__ = __webpack_require__(73);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__utils_isBoolean__ = __webpack_require__(74);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__utils_isFunction__ = __webpack_require__(75);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__tokens_tokenHandlers__ = __webpack_require__(76);
 
 
 /**
@@ -727,93 +724,6 @@ module.exports = require("fs");
 
 
 
-
-
-
-const TEXT_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].TEXT_TAG,
-      VARIABLE_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].VARIABLE_TAG,
-      SECTION_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].SECTION_TAG,
-      CLOSING_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].CLOSING_TAG,
-      PARTIAL_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].PARTIAL_TAG,
-      INVERTED_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].INVERTED_TAG,
-      COMMENT_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].COMMENT_TAG,
-      DELIMITER_TAG = __WEBPACK_IMPORTED_MODULE_3__utils_constants__["a" /* default */].DELIMITER_TAG;
-
-
-const HANDLER_MAPPINGS = {
-  [TEXT_TAG]: ({ tokens, renderedStr }) => ({
-    renderedStr: `${renderedStr}${tokens[0].rawContents}`
-  }),
-  [VARIABLE_TAG]: ({ tokens, renderedStr, context }) => {
-    var _tokens = __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default.a(tokens, 1);
-
-    const token = _tokens[0];
-
-
-    return {
-      renderedStr: token.context ? `${renderedStr}${token.context[token.key]}` : `${renderedStr}${context[token.key]}`
-    };
-  },
-  [SECTION_TAG]: config => {
-    const tokens = config.tokens,
-          contextPath = config.contextPath,
-          context = config.context,
-          renderedStr = config.renderedStr;
-
-    const newContext = context[tokens[0].key];
-    const closingTagIndex = tokens.findIndex(t => t.type === CLOSING_TAG);
-    const tokensInSection = tokens.slice(1, closingTagIndex);
-
-    if (__WEBPACK_IMPORTED_MODULE_4__utils_isArray__["a" /* default */](newContext)) {
-      return {
-        tokens: [...newContext.reduce((accum, ctx) => {
-          return [...accum, ...tokensInSection.map(t => __WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default.a({}, t, {
-            context: ctx
-          }))];
-        }, []), ...tokens.slice(closingTagIndex)],
-        contextPath: [...contextPath, tokens[0].key]
-      };
-    } else if (__WEBPACK_IMPORTED_MODULE_5__utils_isBoolean__["a" /* default */](newContext)) {
-      return newContext ? { contextPath: [...contextPath, tokens[0].key] } : { tokens: tokens.slice(closingTagIndex) };
-    } else if (__WEBPACK_IMPORTED_MODULE_6__utils_isFunction__["a" /* default */](newContext)) {
-      const text = tokensInSection.reduce((str, t) => {
-        return `${str}${t.rawContents}`;
-      }, ``);
-
-      const renderedText = newContext()(text, render, context); // eslint-disable-line
-
-      return {
-        tokens: tokens.slice(closingTagIndex),
-        contextPath: [...contextPath, tokens[0].key],
-        renderedStr: `${renderedStr}${renderedText}`
-      };
-    }
-
-    return {
-      contextPath: [...contextPath, tokens[0].key]
-    };
-  },
-  [INVERTED_TAG]: ({ tokens, contextPath, context }) => {
-    const newContext = context[tokens[0].key];
-    const closingTagIndex = tokens.findIndex(t => t.type === CLOSING_TAG);
-
-    return newContext ? { tokens: tokens.slice(closingTagIndex) } : { contextPath: [...contextPath, tokens[0].key] };
-  },
-  [PARTIAL_TAG]: ({ tokens, context, renderedStr }, partialLoader) => {
-    const renderedPartial = render( // eslint-disable-line
-    partialLoader(tokens[0].key, context), context, partialLoader);
-
-    return {
-      renderedStr: `${renderedStr}${renderedPartial}`
-    };
-  },
-  [CLOSING_TAG]: ({ contextPath }) => ({
-    contextPath: contextPath.slice(1)
-  }),
-  [COMMENT_TAG]: () => ({}),
-  [DELIMITER_TAG]: () => ({})
-};
-
 const render = (template, context = {}, partialLoader) => {
   // TODO: Add caching logic to prevent reparsing when possible
   const processTokens = config => {
@@ -821,9 +731,9 @@ const render = (template, context = {}, partialLoader) => {
           contextPath = config.contextPath,
           renderedStr = config.renderedStr;
 
-    var _tokens2 = __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default.a(tokens, 1);
+    var _tokens = __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default.a(tokens, 1);
 
-    const token = _tokens2[0];
+    const token = _tokens[0];
 
 
     if (!token) {
@@ -838,8 +748,8 @@ const render = (template, context = {}, partialLoader) => {
       return ctx[k];
     }, context);
 
-    const handler = HANDLER_MAPPINGS[token.type];
-    const configChanges = handler(__WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default.a({}, config, { context: currentContext }), partialLoader);
+    const handler = __WEBPACK_IMPORTED_MODULE_3__tokens_tokenHandlers__["a" /* default */][token.type];
+    const configChanges = handler(__WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default.a({}, config, { context: currentContext }), partialLoader, render);
 
     return processTokens(__WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default.a({}, config, {
       tokens: tokens.slice(1)
@@ -1587,6 +1497,117 @@ const isBoolean = x => typeof x === `boolean`;
 const isFunction = x => typeof x === `function`;
 
 /* harmony default export */ __webpack_exports__["a"] = (isFunction);
+
+/***/ }),
+/* 76 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends__ = __webpack_require__(35);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray__ = __webpack_require__(16);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__utils_isArray__ = __webpack_require__(73);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__utils_isBoolean__ = __webpack_require__(74);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__utils_isFunction__ = __webpack_require__(75);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__utils_constants__ = __webpack_require__(8);
+
+
+/**
+ * tokenHandlers.js
+ * Written by: Connor Taylor
+ */
+
+
+
+
+
+
+const TEXT_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].TEXT_TAG,
+      VARIABLE_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].VARIABLE_TAG,
+      SECTION_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].SECTION_TAG,
+      CLOSING_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].CLOSING_TAG,
+      PARTIAL_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].PARTIAL_TAG,
+      INVERTED_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].INVERTED_TAG,
+      COMMENT_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].COMMENT_TAG,
+      DELIMITER_TAG = __WEBPACK_IMPORTED_MODULE_5__utils_constants__["a" /* default */].DELIMITER_TAG;
+
+
+const tokenHandlers = {
+  [TEXT_TAG]: ({ tokens, renderedStr }) => ({
+    renderedStr: `${renderedStr}${tokens[0].rawContents}`
+  }),
+  [VARIABLE_TAG]: ({ tokens, renderedStr, context }) => {
+    var _tokens = __WEBPACK_IMPORTED_MODULE_1_babel_runtime_helpers_slicedToArray___default.a(tokens, 1);
+
+    const token = _tokens[0];
+
+
+    return {
+      renderedStr: token.context ? `${renderedStr}${token.context[token.key]}` : `${renderedStr}${context[token.key]}`
+    };
+  },
+  [SECTION_TAG]: (config, partialLoader, render) => {
+    const tokens = config.tokens,
+          contextPath = config.contextPath,
+          context = config.context,
+          renderedStr = config.renderedStr;
+
+    const newContext = context[tokens[0].key];
+    const closingTagIndex = tokens.findIndex(t => t.type === CLOSING_TAG);
+    const tokensInSection = tokens.slice(1, closingTagIndex);
+
+    if (__WEBPACK_IMPORTED_MODULE_2__utils_isArray__["a" /* default */](newContext)) {
+      return {
+        tokens: [...newContext.reduce((accum, ctx) => {
+          return [...accum, ...tokensInSection.map(t => __WEBPACK_IMPORTED_MODULE_0_babel_runtime_helpers_extends___default.a({}, t, {
+            context: ctx
+          }))];
+        }, []), ...tokens.slice(closingTagIndex)],
+        contextPath: [...contextPath, tokens[0].key]
+      };
+    } else if (__WEBPACK_IMPORTED_MODULE_3__utils_isBoolean__["a" /* default */](newContext)) {
+      return newContext ? { contextPath: [...contextPath, tokens[0].key] } : { tokens: tokens.slice(closingTagIndex) };
+    } else if (__WEBPACK_IMPORTED_MODULE_4__utils_isFunction__["a" /* default */](newContext)) {
+      const text = tokensInSection.reduce((str, t) => {
+        return `${str}${t.rawContents}`;
+      }, ``);
+
+      const renderedText = newContext()(text, render, context); // eslint-disable-line
+
+      return {
+        tokens: tokens.slice(closingTagIndex),
+        contextPath: [...contextPath, tokens[0].key],
+        renderedStr: `${renderedStr}${renderedText}`
+      };
+    }
+
+    return {
+      contextPath: [...contextPath, tokens[0].key]
+    };
+  },
+  [INVERTED_TAG]: ({ tokens, contextPath, context }) => {
+    const newContext = context[tokens[0].key];
+    const closingTagIndex = tokens.findIndex(t => t.type === CLOSING_TAG);
+
+    return newContext ? { tokens: tokens.slice(closingTagIndex) } : { contextPath: [...contextPath, tokens[0].key] };
+  },
+  [PARTIAL_TAG]: ({ tokens, context, renderedStr }, partialLoader, render) => {
+    const renderedPartial = render( // eslint-disable-line
+    partialLoader(tokens[0].key, context), context, partialLoader);
+
+    return {
+      renderedStr: `${renderedStr}${renderedPartial}`
+    };
+  },
+  [CLOSING_TAG]: ({ contextPath }) => ({
+    contextPath: contextPath.slice(1)
+  }),
+  [COMMENT_TAG]: () => ({}),
+  [DELIMITER_TAG]: () => ({})
+};
+
+/* harmony default export */ __webpack_exports__["a"] = (tokenHandlers);
 
 /***/ })
 /******/ ]);
