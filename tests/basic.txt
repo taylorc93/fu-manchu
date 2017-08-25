@@ -30,7 +30,7 @@ Object section
 {{/ objectSection}}
 
 {{#functionSection}}
-{{variable}}
+{{variable}} {{variable}}
 {{/functionSection}}
 
 {{#anotherFunction}}
